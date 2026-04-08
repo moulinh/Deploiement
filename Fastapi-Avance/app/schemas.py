@@ -5,8 +5,9 @@ class TextRequest(BaseModel):
 
 class TextResponse(BaseModel):
     text: str
-    sentiment: str
+    class_name: str
     confidence: float
+    probabilities: dict[str, float]
 
 class ImageResponse(BaseModel):
     class_name: str

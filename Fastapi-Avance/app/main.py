@@ -14,7 +14,7 @@ image_model = load_image_model()
 
 @app.get("/health")
 def health():
-    return {"status": "ok : Version 4"}
+    return {"status": "ok : Version 9 du 08/04/2026"}
 
 @app.post("/predict/text", response_model=TextResponse)
 def predict_text_route(request: TextRequest):

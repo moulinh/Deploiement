@@ -1,50 +1,67 @@
 import os
-import pickle
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
+from pathlib import Path
+import joblib
 from sklearn.pipeline import Pipeline
-from app.preprocess.text import preprocess_text
 
-MODEL_PATH = "text_model.pkl"
+import re
+import spacy
+import numpy as np
 
-TRAIN_DATA = [
-    ("I love this product, it is amazing", "positive"),
-    ("Absolutely wonderful experience", "positive"),
-    ("This is the best thing I have ever bought", "positive"),
-    ("Really happy with the quality", "positive"),
-    ("Fantastic service and fast delivery", "positive"),
-    ("I hate this product, it is terrible", "negative"),
-    ("Worst experience of my life", "negative"),
-    ("Completely disappointed, do not buy", "negative"),
-    ("Very bad quality, broke after one day", "negative"),
-    ("Awful service, never coming back", "negative"),
-]
+TEXT_MODEL_NAME = "best_model_annonces.pkl"
+TEXT_class_names = ["Sans défauts", "Avec défauts"]
 
-def create_text_model() -> Pipeline:
-    texts, labels = zip(*TRAIN_DATA)
-    texts = [preprocess_text(t) for t in texts]
-    pipeline = Pipeline([
-        ("tfidf", TfidfVectorizer()),
-        ("clf", LogisticRegression()),
-    ])
-    pipeline.fit(texts, labels)
-    with open(MODEL_PATH, "wb") as f:
-        pickle.dump(pipeline, f)
-    print("Modèle texte créé et sauvegardé.")
-    return pipeline
+nlp = spacy.load('fr_core_news_sm')
+
+def preprocess_text(text: str) -> str:
+    print("preprocess_text")
+    print("text : ", text)
+    text = str(text).lower()
+    text = re.sub(r'[^a-zA-Zàâéèêôùûç\s]', '', text)
+    doc = nlp(text)
+    lemmatized = ' '.join([token.lemma_ for token in doc if not token.is_stop])
+    print("fin preprocess_text")
+    print("retour : ", lemmatized)
+    return str(lemmatized)
 
 def load_text_model() -> Pipeline:
-    if not os.path.exists(MODEL_PATH):
-        print("Aucun modèle texte trouvé, création en cours...")
-        return create_text_model()
-    with open(MODEL_PATH, "rb") as f:
-        model = pickle.load(f)
-    print("Modèle texte chargé.")
-    return model
+    project_root = Path.cwd()
+    print("project_root : " + str(project_root))
+    TEXT_MODEL_PATH = "." + str(project_root) + "/" + TEXT_MODEL_NAME
+    print("TEXT_MODEL_PATH : ", TEXT_MODEL_PATH)
+    if not os.path.exists(TEXT_MODEL_PATH):
+        print("*** Aucun modèle image trouvé !!!")
+        text_model = None
+    else: 
+        text_model = joblib.load(TEXT_MODEL_PATH)
+        print("Modèle texte chargé.")
+    return text_model
 
 def predict_text(model: Pipeline, text: str) -> dict:
+    print("predict_text")
+    print("text : ", text)
     cleaned = preprocess_text(text)
-    label = model.predict([cleaned])[0]
+    print("cleaned : ", cleaned)
+
+    # Prédiction
+    pred = model.predict([cleaned])[0]
+    print("pred : ", str(pred))
+
+    # Probabilités complètes
     proba = model.predict_proba([cleaned])[0]
-    confidence = round(float(max(proba)), 4)
-    return {"sentiment": label, "confidence": confidence}
+    print("proba : ", str(proba))
+
+    proba_0 = proba[0]
+    proba_1 = proba[1]
+
+    print(f"Prédiction : {pred} (1=défaut, 0=ok)")
+    print(f"Probabilité PAS de défaut (0) : {proba_0:.2f}")
+    print(f"Probabilité défaut (1) : {proba_1:.2f}")
+
+    digit = int(np.argmax(proba))
+    class_name = TEXT_class_names[digit] 
+    confidence = round(float(np.max(proba)), 4)
+    probabilities = {
+        TEXT_class_names[i]: round(float(proba[i]), 4) for i in range(len(TEXT_class_names))
+    }
+
+    return {"class_name": class_name, "confidence": confidence, "probabilities": probabilities}

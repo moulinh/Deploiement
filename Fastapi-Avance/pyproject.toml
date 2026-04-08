@@ -9,6 +9,7 @@ dependencies = [
     "tensorflow",
     "pillow",
     "python-multipart",
+    "spacy"
 ]
 
 [dependency-groups]

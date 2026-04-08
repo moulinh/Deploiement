@@ -12,4 +12,6 @@ COPY app/ ./app/
 
 EXPOSE 8000
 
+RUN uv run python -m spacy download fr_core_news_sm
+
 CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
